@@ -1,0 +1,12 @@
+CREATE FUNCTION [dbo].[fn_GenerateOrderNumber]
+(
+    @OrderId INT
+)
+RETURNS NVARCHAR(50)
+WITH SCHEMABINDING
+AS
+BEGIN
+    -- Format: SNS-YYYYMMDD-NNNNN  e.g. SNS-20240315-00042
+    RETURN N'SNS-' + FORMAT(GETUTCDATE(), 'yyyyMMdd') + N'-' + RIGHT(N'00000' + CAST(@OrderId AS NVARCHAR(5)), 5);
+END;
+GO

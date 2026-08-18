@@ -1,0 +1,96 @@
+name: Database Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'ShopNStopDB/**'
+      - '.github/workflows/database-deploy.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'ShopNStopDB/**'
+
+jobs:
+  # ── Validate: build SSDT project and check SQL syntax ─────────────────────
+  validate-database:
+    name: Validate Database Schema
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build SSDT project (produces DACPAC)
+        run: dotnet build ShopNStopDB/ShopNStopDB.sqlproj --configuration Release --nologo
+
+      - name: Validate SQL syntax (no CREATE OR ALTER in SSDT files)
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path "ShopNStopDB/dbo" -Filter "*.sql" -Recurse
+          foreach ($file in $files) {
+            $content = Get-Content -Path $file.FullName -Raw
+            if ($content -match "CREATE OR ALTER") {
+              Write-Error "SSDT requires CREATE PROCEDURE, not CREATE OR ALTER: $($file.Name)"
+              exit 1
+            }
+          }
+          Write-Host "All SQL files validated successfully."
+
+  # ── Deploy: publish DACPAC to target database ──────────────────────────────
+  deploy-database:
+    name: Deploy Database (DACPAC)
+    runs-on: self-hosted
+    needs: validate-database
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build SSDT project
+        run: dotnet build ShopNStopDB/ShopNStopDB.sqlproj --configuration Release --nologo
+
+      - name: Install SqlPackage
+        run: dotnet tool install -g microsoft.sqlpackage --ignore-failed-sources
+
+      - name: Deploy to develop database
+        if: github.ref == 'refs/heads/develop'
+        shell: pwsh
+        run: |
+          $dacpac = "ShopNStopDB\bin\Release\StopNShopDB.dacpac"
+          $connStr = "${{ secrets.DEV_DB_CONNECTION_STRING }}"
+          sqlpackage /Action:Publish `
+                     /SourceFile:"$dacpac" `
+                     /TargetConnectionString:"$connStr" `
+                     /p:BlockOnPossibleDataLoss=False `
+                     /p:DropObjectsNotInSource=False
+
+      - name: Deploy to production database
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          $dacpac = "ShopNStopDB\bin\Release\StopNShopDB.dacpac"
+          $connStr = "${{ secrets.PROD_DB_CONNECTION_STRING }}"
+          sqlpackage /Action:Publish `
+                     /SourceFile:"$dacpac" `
+                     /TargetConnectionString:"$connStr" `
+                     /p:BlockOnPossibleDataLoss=False `
+                     /p:DropObjectsNotInSource=False
+
+      - name: Deployment complete
+        run: Write-Host "Database deployment completed successfully."

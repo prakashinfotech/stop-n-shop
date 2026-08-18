@@ -1,0 +1,137 @@
+name: Build, Push & Deploy
+
+# On every push to main/master:
+#   1. build-push  (ubuntu-latest) — builds all 3 Docker images and pushes to GHCR
+#   2. deploy      (self-hosted)   — pulls the new images and restarts containers
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # ── Job 1: Build & push images to GitHub Container Registry ──────────────────
+  build-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute lowercase owner
+        id: owner
+        run: echo "name=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      # ── DB image ──────────────────────────────────────────────────────────────
+      - name: Build & push DB image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./db
+          push: true
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-db:latest
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-db:${{ github.sha }}
+          cache-from: type=gha,scope=db
+          cache-to:   type=gha,scope=db,mode=max
+
+      # ── API image ─────────────────────────────────────────────────────────────
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./api
+          push: true
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-api:latest
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-api:${{ github.sha }}
+          cache-from: type=gha,scope=api
+          cache-to:   type=gha,scope=api,mode=max
+
+      # ── UI image ──────────────────────────────────────────────────────────────
+      - name: Build & push UI image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./stopnshop-ui
+          push: true
+          tags: |
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-ui:latest
+            ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-ui:${{ github.sha }}
+          cache-from: type=gha,scope=ui
+          cache-to:   type=gha,scope=ui,mode=max
+
+  # ── Job 2: Pull images & redeploy on local Docker Desktop ────────────────────
+  deploy:
+    name: Deploy to Docker Desktop
+    needs: build-push
+    runs-on: self-hosted
+    environment: local
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute lowercase owner
+        id: owner
+        shell: bash
+        run: echo "name=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Write .env
+        env:
+          SA_PASSWORD:        ${{ secrets.SA_PASSWORD }}
+          JWT_SECRET_KEY:     ${{ secrets.JWT_SECRET_KEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN:  ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          IMAGE_PREFIX:       ghcr.io/${{ steps.owner.outputs.name }}
+        run: |
+          @"
+          SA_PASSWORD=$env:SA_PASSWORD
+          JWT_SECRET_KEY=$env:JWT_SECRET_KEY
+          TWILIO_ACCOUNT_SID=$env:TWILIO_ACCOUNT_SID
+          TWILIO_AUTH_TOKEN=$env:TWILIO_AUTH_TOKEN
+          TWILIO_FROM_NUMBER=$env:TWILIO_FROM_NUMBER
+          IMAGE_PREFIX=$env:IMAGE_PREFIX
+          "@ | Set-Content -Path .env -Encoding utf8
+
+      - name: Pull latest images
+        run: docker compose pull
+
+      - name: Restart containers
+        run: docker compose up -d
+
+      - name: Wait for DB healthy
+        run: |
+          Write-Host "Waiting for DB..."
+          for ($i = 1; $i -le 30; $i++) {
+            $status = docker inspect --format='{{.State.Health.Status}}' stopnshop-db 2>$null
+            if (-not $status) { $status = "missing" }
+            Write-Host "  [$i] db=$status"
+            if ($status -eq "healthy") { Write-Host "DB healthy."; break }
+            if ($i -eq 30) { docker compose logs db --tail=60; exit 1 }
+            Start-Sleep 10
+          }
+          docker compose ps
+
+      - name: Clean up old images
+        run: docker image prune -f

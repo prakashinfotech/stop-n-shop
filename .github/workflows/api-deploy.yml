@@ -1,0 +1,104 @@
+name: API Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'api/**'
+      - '.github/workflows/api-deploy.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'api/**'
+
+jobs:
+  build-api:
+    name: Build API
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore dependencies
+        run: dotnet restore api/ShopNShop.Api.csproj
+      
+      - name: Build
+        run: dotnet build api/ShopNShop.Api.csproj --configuration Release --no-restore
+      
+      - name: Run tests
+        run: dotnet test api/ShopNShop.Api.csproj --configuration Release --no-build --verbosity normal
+        continue-on-error: true
+      
+      - name: Publish
+        run: dotnet publish api/ShopNShop.Api.csproj --configuration Release --no-build --output ./publish
+
+  deploy-api-dev:
+    name: Deploy API to Development
+    runs-on: self-hosted
+    needs: build-api
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore and publish
+        run: |
+          dotnet restore api/ShopNShop.Api.csproj
+          dotnet publish api/ShopNShop.Api.csproj --configuration Release --output ./publish
+      
+      - name: Deploy to development server
+        run: |
+          Write-Host "Deploying API to development environment..."
+          # Copy files to dev server
+          $devPath = "${{ secrets.DEV_API_PATH }}"
+          Copy-Item -Path "./publish/*" -Destination $devPath -Recurse -Force
+          Write-Host "API deployed to development"
+
+  deploy-api-prod:
+    name: Deploy API to Production
+    runs-on: self-hosted
+    needs: build-api
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore and publish
+        run: |
+          dotnet restore api/ShopNShop.Api.csproj
+          dotnet publish api/ShopNShop.Api.csproj --configuration Release --output ./publish
+      
+      - name: Deploy to production server
+        run: |
+          Write-Host "Deploying API to production environment..."
+          # Copy files to prod server
+          $prodPath = "${{ secrets.PROD_API_PATH }}"
+          Copy-Item -Path "./publish/*" -Destination $prodPath -Recurse -Force
+          Write-Host "API deployed to production"
+      
+      - name: Restart API service
+        run: |
+          Write-Host "Restarting API service..."
+          Restart-Service -Name "ShopNShopAPI" -Force

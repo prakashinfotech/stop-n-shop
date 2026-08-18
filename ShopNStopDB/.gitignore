@@ -1,0 +1,29 @@
+# Build output
+bin/
+obj/
+
+# Visual Studio user-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# SQL Server user instance data
+*.mdf
+*.ldf
+*.ndf
+
+# sqlpackage publish profile (may contain credentials)
+*.publish.xml
+
+# Dacpac artefacts from CI
+*.dacpac
+*.bpac
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store

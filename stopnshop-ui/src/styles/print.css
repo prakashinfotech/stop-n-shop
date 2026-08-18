@@ -1,0 +1,42 @@
+/* ─────────────────────────────────────────────────────────────────────
+ * Print stylesheet for the seller fulfilment labels.
+ * Two paper sizes are used:
+ *   - A6 (105 × 148 mm) — shipping sticker, thermal-printer friendly
+ *   - A4 (210 × 297 mm) — order receipt / fulfilment slip
+ * The PrintLabelPage swaps a body class so a single Print button can
+ * target either or both artefacts.
+ * ──────────────────────────────────────────────────────────────────── */
+
+@media print {
+  /* Hide every chrome element marked .no-print (toolbar, navigation, etc.) */
+  .no-print { display: none !important; }
+
+  /* Strip browser defaults that interfere with reproducible paper output. */
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Each artefact starts on its own page. */
+  .print-sticker,
+  .print-receipt {
+    box-shadow: none !important;
+    margin: 0 !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  /* Hide the artefact the seller didn't pick. */
+  body.print-mode-sticker .print-receipt { display: none !important; }
+  body.print-mode-receipt .print-sticker  { display: none !important; }
+}
+
+/* Paper sizing — applies to print only. */
+@page sticker { size: 105mm 148mm; margin: 4mm; }
+@page receipt { size: A4 portrait; margin: 12mm; }
+
+/* Default @page applies when no named page is selected; A4 portrait covers
+ * the receipt case and the sticker @page rules in the components themselves
+ * apply via inline style on those elements. */
+@page { size: A4 portrait; margin: 12mm; }

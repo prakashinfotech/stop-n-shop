@@ -1,0 +1,50 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: ${SA_PASSWORD}
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$SA_PASSWORD" -C -Q "SELECT 1" || exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      ConnectionStrings__ShopNShop: "Server=db,1433;Database=ShopNShop_db;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
+      Jwt__SecretKey: ${JWT_SECRET_KEY}
+      Jwt__Issuer: "ShopNShop"
+      Jwt__Audience: "ShopNShopUsers"
+      Twilio__AccountSid: ${TWILIO_ACCOUNT_SID}
+      Twilio__AuthToken: ${TWILIO_AUTH_TOKEN}
+      Twilio__FromNumber: ${TWILIO_FROM_NUMBER}
+      AllowedOrigins: ${ALLOWED_ORIGINS}
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "5000:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/wwwroot/uploads
+
+  ui:
+    build:
+      context: ./stopnshop-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  sqlserver_data:
+  uploads:

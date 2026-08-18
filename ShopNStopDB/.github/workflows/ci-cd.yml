@@ -1,0 +1,90 @@
+name: StopNShopDB CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  DOTNET_VERSION: '8.x'
+  PROJECT_FILE: StopNShop.sqlproj
+  DACPAC_NAME: StopNShopDB.dacpac
+
+jobs:
+  # ── Build ──────────────────────────────────────────────────────────────────
+  build:
+    name: Build DACPAC
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Install Microsoft.Build.Sql tools
+        run: dotnet tool install -g microsoft.sqlpackage
+
+      - name: Restore & Build
+        run: dotnet build ${{ env.PROJECT_FILE }} --configuration Release --nologo
+
+      - name: Upload DACPAC artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dacpac
+          path: bin/Release/${{ env.DACPAC_NAME }}
+          retention-days: 7
+
+  # ── Deploy to Staging ──────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build
+    runs-on: windows-latest
+    environment: staging
+    if: github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Download DACPAC
+        uses: actions/download-artifact@v4
+        with:
+          name: dacpac
+
+      - name: Deploy to Staging SQL Server
+        run: |
+          sqlpackage `
+            /Action:Publish `
+            /SourceFile:"${{ env.DACPAC_NAME }}" `
+            /TargetConnectionString:"${{ secrets.STAGING_SQL_CONN }}" `
+            /p:BlockOnPossibleDataLoss=false `
+            /p:DropObjectsNotInSource=false `
+            /p:CreateNewDatabase=false `
+            /p:IncludeCompositeObjects=true
+
+  # ── Deploy to Production ───────────────────────────────────────────────────
+  deploy-prod:
+    name: Deploy to Production
+    needs: build
+    runs-on: windows-latest
+    environment: production
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download DACPAC
+        uses: actions/download-artifact@v4
+        with:
+          name: dacpac
+
+      - name: Deploy to Production SQL Server
+        run: |
+          sqlpackage `
+            /Action:Publish `
+            /SourceFile:"${{ env.DACPAC_NAME }}" `
+            /TargetConnectionString:"${{ secrets.PROD_SQL_CONN }}" `
+            /p:BlockOnPossibleDataLoss=false `
+            /p:DropObjectsNotInSource=false `
+            /p:CreateNewDatabase=false `
+            /p:IncludeCompositeObjects=true

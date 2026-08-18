@@ -1,0 +1,20 @@
+<svg width="200" height="56" viewBox="0 0 200 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="200" height="56" fill="none"/>
+
+  <!-- StopNShop mark (geometric square with gradient) -->
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c41230;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6b111e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Logo Mark -->
+  <rect x="8" y="8" width="40" height="40" rx="8" fill="url(#brandGradient)"/>
+  <text x="28" y="34" font-family="Playfair Display, serif" font-size="24" font-weight="700" fill="white" text-anchor="middle">S</text>
+
+  <!-- Logo Text -->
+  <text x="56" y="20" font-family="Playfair Display, serif" font-size="16" font-weight="700" fill="#1f2937" letter-spacing="-0.5">StopNShop</text>
+  <text x="56" y="38" font-family="Inter, sans-serif" font-size="12" font-weight="400" fill="#6b7280">Premium Fashion</text>
+</svg>

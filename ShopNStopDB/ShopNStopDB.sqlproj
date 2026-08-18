@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  StopNShop SQL Server Database Project
+  SDK: Microsoft.Build.Sql (SDK-style .sqlproj)
+  Target: SQL Server 2022 (DSP160)
+  Auto-discovers all .sql files; dbo\Data seed scripts excluded from schema compilation.
+-->
+<Project DefaultTargets="Build">
+  <Sdk Name="Microsoft.Build.Sql" Version="0.2.3-preview" />
+  <PropertyGroup>
+    <Name>StopNShopDB</Name>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql160DatabaseSchemaProvider</DSP>
+    <DefaultFileStructure>BySchemaAndType</DefaultFileStructure>
+    <DeployToDatabase>False</DeployToDatabase>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <RunSqlCodeAnalysis>True</RunSqlCodeAnalysis>
+    <!-- Suppress: SR0001 avoid SELECT *, SR0004 unused index (FT index handled separately) -->
+    <SqlCodeAnalysisRules>-SqlServer.Rules.SR0001;-SqlServer.Rules.SR0004</SqlCodeAnalysisRules>
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AssemblyName>StopNShopDB</AssemblyName>
+	<RuntimeIdentifiers>win</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win</RuntimeIdentifiers>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+    <ProjectGuid>{6c975f7b-d7c3-4b2d-af0c-ae250d81630e}</ProjectGuid>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == ''">
+    <Configuration>Release</Configuration>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Seed data scripts: excluded from schema model; included via :r in post-deploy -->
+    <Build Remove="dbo\Data\**" />
+    <None Include="dbo\Data\**" />
+    <!-- Helper scripts + DB export artefacts: not part of the schema model -->
+    <Build Remove="scripts\**" />
+    <None  Include="scripts\**" />
+    <Build Remove="db-export\**" />
+    <None  Include="db-export\**" />
+    <!-- Post-deployment script -->
+    <PostDeploy Include="Script.PostDeployment.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="dbo\" />
+    <Folder Include="dbo\Data\" />
+    <Folder Include="dbo\Tables\" />
+    <Folder Include="dbo\StoredProcedures\" />
+    <Folder Include="dbo\Views\" />
+    <Folder Include="dbo\Functions\" />
+    <Folder Include="dbo\Triggers\" />
+  </ItemGroup>
+</Project>

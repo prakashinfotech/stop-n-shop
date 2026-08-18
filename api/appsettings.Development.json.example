@@ -1,0 +1,41 @@
+{
+  "_note": "Copy this file to appsettings.Development.json and fill in real values. The real file is gitignored — never commit it.",
+  "ConnectionStrings": {
+    "ShopNShop": "Server=localhost\\SQLEXPRESS;Database=ShopNShop_db;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Jwt": {
+    "SecretKey": "REPLACE_WITH_A_STRONG_RANDOM_SECRET_AT_LEAST_32_CHARS",
+    "Issuer": "ShopNShop",
+    "Audience": "ShopNShopUsers"
+  },
+  "Twilio": {
+    "AccountSid": "",
+    "AuthToken": "",
+    "FromNumber": ""
+  },
+  "Smtp": {
+    "Host": "smtp.office365.com",
+    "Port": "587",
+    "EnableSsl": true,
+    "User": "",
+    "Password": "",
+    "FromEmail": "",
+    "FromName": "Stop-N-Shop",
+    "ToEmail": ""
+  },
+  "ImgBB": {
+    "ApiKey": ""
+  },
+  "Razorpay": {
+    "KeyId": "",
+    "KeySecret": ""
+  },
+  "AllowedOrigins": "http://localhost:3000",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+}

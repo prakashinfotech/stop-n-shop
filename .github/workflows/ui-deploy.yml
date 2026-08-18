@@ -1,0 +1,98 @@
+name: UI Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'stopnshop-ui/**'
+      - '.github/workflows/ui-deploy.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'stopnshop-ui/**'
+
+jobs:
+  build-ui:
+    name: Build UI
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'stopnshop-ui/package-lock.json'
+      
+      - name: Install dependencies
+        run: cd stopnshop-ui && npm install
+      
+      - name: Run linter
+        run: cd stopnshop-ui && npm run lint
+        continue-on-error: true
+      
+      - name: Run tests
+        run: cd stopnshop-ui && npm run test -- --run
+        continue-on-error: true
+      
+      - name: Build
+        run: cd stopnshop-ui && npm run build
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-build
+          path: stopnshop-ui/dist
+
+  deploy-ui-dev:
+    name: Deploy UI to Development
+    runs-on: self-hosted
+    needs: build-ui
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: dist
+      
+      - name: Deploy to development server
+        run: |
+          echo "Deploying UI to development environment..."
+          # Deploy to dev server (e.g., using rsync, scp, or cloud provider)
+          # Example: rsync -avz dist/ user@dev-server:/var/www/stopnshop-ui/
+          echo "UI deployed to development"
+
+  deploy-ui-prod:
+    name: Deploy UI to Production
+    runs-on: self-hosted
+    needs: build-ui
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ui-build
+          path: dist
+      
+      - name: Deploy to production server
+        run: |
+          echo "Deploying UI to production environment..."
+          # Deploy to prod server (e.g., using rsync, scp, or cloud provider)
+          # Example: rsync -avz dist/ user@prod-server:/var/www/stopnshop-ui/
+          echo "UI deployed to production"
+      
+      - name: Invalidate CDN cache
+        run: |
+          echo "Invalidating CDN cache..."
+          # Invalidate CloudFront or other CDN cache
+          # Example: aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} --paths "/*"

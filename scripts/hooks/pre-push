@@ -1,0 +1,41 @@
+#!/bin/bash
+# pre-push hook — auto-deploys DB changes to local SQL Server before push.
+# Install: run scripts/install-hooks.ps1 once per clone.
+
+remote="$1"
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+DB_CHANGED=0
+
+# Read the list of refs being pushed (stdin: local_ref local_sha remote_ref remote_sha)
+while read local_ref local_sha remote_ref remote_sha; do
+    # Empty tree SHA for new branches
+    EMPTY_TREE="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+    BASE="${remote_sha:-$EMPTY_TREE}"
+
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        BASE="$EMPTY_TREE"
+    fi
+
+    if git diff --name-only "$BASE" "$local_sha" -- "ShopNStopDB/" | grep -q .; then
+        DB_CHANGED=1
+        break
+    fi
+done
+
+if [ "$DB_CHANGED" = "1" ]; then
+    echo ""
+    echo "[pre-push] ShopNStopDB changes detected — deploying to local database..."
+    powershell.exe -ExecutionPolicy Bypass \
+        -File "$REPO_ROOT/scripts/deploy-local.ps1" \
+        -Component database
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "[pre-push] WARNING: DB deploy failed (exit $EXIT_CODE). Push continues."
+    else
+        echo "[pre-push] DB deployed successfully."
+    fi
+    echo ""
+fi
+
+exit 0

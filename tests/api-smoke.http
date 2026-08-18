@@ -1,0 +1,129 @@
+### StopNShop API Smoke Tests
+#
+# Append a new ### block every time a flow is verified to work.
+# Each block: name, last-verified date, status, payload.
+# Before merging any change, run all blocks here. Any non-2xx = regression.
+#
+# How to run:
+#   - VS Code: install "REST Client" extension (humao.rest-client), then click "Send Request" above each ### block.
+#   - CLI: copy the curl equivalent at the bottom of each block.
+#
+# Auth tokens: replace {{customerToken}} / {{sellerToken}} after a successful login below.
+
+@host = http://localhost:5000
+@customerToken = REPLACE_AFTER_LOGIN
+@sellerToken   = REPLACE_AFTER_LOGIN
+
+
+### [PUBLIC] GET megamenu — verified 2026-05-12, 200
+GET {{host}}/api/menu
+
+
+### [PUBLIC] GET product list by category — verified 2026-05-12, 200
+GET {{host}}/api/products?categoryId=1&sortBy=Newest
+
+
+### [PUBLIC] GET categories dropdown
+GET {{host}}/api/categories
+
+
+### [PUBLIC] GET subcategories for category 1
+GET {{host}}/api/categories/1/subcategories
+
+
+### [PUBLIC] GET brands
+GET {{host}}/api/brands
+
+
+### [CUSTOMER AUTH] login — paste token into @customerToken above on success
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@test.com",
+  "password": "Test@1234"
+}
+
+
+### [SELLER AUTH] login — paste token into @sellerToken above on success
+POST {{host}}/api/seller/login
+Content-Type: application/json
+
+{
+  "email": "seller@test.com",
+  "password": "Test@1234"
+}
+
+
+### [SELLER] list my products
+GET {{host}}/api/seller/products?page=1&pageSize=20
+Authorization: Bearer {{sellerToken}}
+
+
+### [SELLER] get product detail (edit-page load)
+# Confirms: brandId, categoryId, subCategoryId, tags, imageUrls, colors, sizes are all populated.
+GET {{host}}/api/seller/products/71
+Authorization: Bearer {{sellerToken}}
+
+
+### [SELLER] create product — minimal valid payload
+POST {{host}}/api/seller/products
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "name": "Smoke Test Polo",
+  "description": "Created by smoke test",
+  "brandId": 1,
+  "categoryId": 1,
+  "subCategoryId": 4,
+  "mrp": 1500,
+  "sellingPrice": 999,
+  "stockQuantity": 10,
+  "lowStockThreshold": 2,
+  "imageUrls": [],
+  "colors": ["Blue"],
+  "sizes": ["M"],
+  "tags": ["men", "polos", "casual-wear"]
+}
+
+
+### [SELLER] update product — full payload (mirrors Edit page submit)
+# After running, GET /api/seller/products/<id> and confirm every field round-trips.
+PUT {{host}}/api/seller/products/71
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "name": "Anarkali",
+  "description": "Clothes",
+  "brandId": 9,
+  "categoryId": 1,
+  "subCategoryId": 4,
+  "mrp": 1000,
+  "sellingPrice": 1200,
+  "stockQuantity": 13,
+  "lowStockThreshold": 10,
+  "imageUrls": ["/uploads/products/faa34c74-ce2f-4b7c-99c4-796b9ad91dd4.png"],
+  "colors": ["Blue", "Red"],
+  "sizes": ["S"],
+  "tags": ["women", "clothing"]
+}
+
+
+### [CUSTOMER] search products
+GET {{host}}/api/products/search?q=polo
+Authorization: Bearer {{customerToken}}
+
+
+### [CUSTOMER] product detail
+GET {{host}}/api/products/71
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# CHANGELOG (most recent first)
+#
+# 2026-05-12  Initial file. Seeded with /api/products and /api/menu confirmed by user.
+#             Seller add/edit/login blocks are TEMPLATES — verify and update the
+#             "verified" comment + date once they pass.
+# ────────────────────────────────────────────────────────────────────────────

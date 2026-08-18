@@ -1,0 +1,12 @@
+# Ensure consistent LF line endings for SQL files across platforms
+*.sql   text eol=lf
+*.sqlproj text eol=crlf
+*.bat   text eol=crlf
+*.ps1   text eol=crlf
+*.yml   text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+
+# Binary files — no diff, no merge
+*.dacpac binary
+*.bpac   binary
