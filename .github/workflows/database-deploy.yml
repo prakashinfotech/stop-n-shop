@@ -72,24 +72,32 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         shell: pwsh
         run: |
-          $dacpac = "ShopNStopDB\bin\Release\StopNShopDB.dacpac"
+          # Resolve the produced DACPAC by glob — the build output filename
+          # follows the project name, so do not hard-code it.
+          $dacpac = (Get-ChildItem "ShopNStopDB/bin/Release/*.dacpac" | Select-Object -First 1).FullName
+          if (-not $dacpac) { Write-Error "No .dacpac produced in ShopNStopDB/bin/Release/"; exit 1 }
+          Write-Host "Publishing $dacpac"
           $connStr = "${{ secrets.DEV_DB_CONNECTION_STRING }}"
           sqlpackage /Action:Publish `
                      /SourceFile:"$dacpac" `
                      /TargetConnectionString:"$connStr" `
-                     /p:BlockOnPossibleDataLoss=False `
+                     /p:BlockOnPossibleDataLoss=True `
                      /p:DropObjectsNotInSource=False
 
       - name: Deploy to production database
         if: github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
-          $dacpac = "ShopNStopDB\bin\Release\StopNShopDB.dacpac"
+          # Resolve the produced DACPAC by glob — the build output filename
+          # follows the project name, so do not hard-code it.
+          $dacpac = (Get-ChildItem "ShopNStopDB/bin/Release/*.dacpac" | Select-Object -First 1).FullName
+          if (-not $dacpac) { Write-Error "No .dacpac produced in ShopNStopDB/bin/Release/"; exit 1 }
+          Write-Host "Publishing $dacpac"
           $connStr = "${{ secrets.PROD_DB_CONNECTION_STRING }}"
           sqlpackage /Action:Publish `
                      /SourceFile:"$dacpac" `
                      /TargetConnectionString:"$connStr" `
-                     /p:BlockOnPossibleDataLoss=False `
+                     /p:BlockOnPossibleDataLoss=True `
                      /p:DropObjectsNotInSource=False
 
       - name: Deployment complete
