@@ -311,6 +311,131 @@ CI/CD pipelines live in [`.github/workflows/`](.github/workflows/) (API, UI, and
 
 ---
 
+### Deploying behind a public domain (split-host setup)
+
+When the UI and API are served from **different hosts** — for example
+`shop.example.com` (UI) and `shop-api.example.com` (API) — three settings must
+line up. Getting any one of them wrong produces a site that loads correctly but
+shows **no data at all**, because every API call fails silently.
+
+| Setting | Set where | Value |
+|---|---|---|
+| `VITE_API_URL` | **Build time**, UI | `https://<api-host>/api` |
+| `AllowedOrigins` | Runtime, API | `https://<ui-host>` — exact scheme + host, no trailing slash |
+| `ConnectionStrings__ShopNShop` | Runtime, API | Real SQL Server connection string |
+
+> ⚠️ **`VITE_API_URL` is baked into the JavaScript bundle at build time** — it
+> cannot be changed after `npm run build`. If it is unset, the bundle falls back
+> to `http://localhost:5000/api` (see [`axiosInstance.ts`](stopnshop-ui/src/api/axiosInstance.ts)),
+> which sends every visitor's browser to *their own machine*. Rebuild the UI
+> whenever the API host changes:
+
+```bash
+cd stopnshop-ui
+VITE_API_URL=https://<api-host>/api npm run build
+```
+
+**Symptom if this is wrong:** `POST /api/auth/buyer/register` returns
+`405 Not Allowed` and every `/api/*` GET returns `200` with `Content-Type: text/html`.
+That is the static web server answering with `index.html` — the request never
+reached the API.
+
+**Alternative — single host.** Keep the UI on a relative `/api` base and let the
+web server proxy to the API, so no rebuild is needed when the backend moves:
+
+```nginx
+location /api/     { proxy_pass https://<api-host>/api/;     proxy_set_header Host $host; }
+location /uploads/ { proxy_pass https://<api-host>/uploads/; proxy_set_header Host $host; }
+```
+
+---
+
+### Bringing an existing database up to date
+
+> ⚠️ **[`db/schema.sql`](db/schema.sql) is a bootstrap convenience file, not the
+> source of truth.** It lags behind the SSDT project in
+> [`ShopNStopDB/`](ShopNStopDB/). A database created from `schema.sql` + `seed.sql`
+> alone is **missing 80 stored procedures and 17 tables** that the API calls, and
+> 8 more procedures have outdated parameter lists.
+
+**Symptom:** the site loads, categories and brands appear, single product pages
+work — but `GET /api/products` returns `500`, and the Admin, Seller, and
+Inventory modules fail. The most common case is `usp_Catalog_Product_Search`,
+which the API calls with 16 parameters while the stale version accepts only 12,
+so SQL Server rejects the call with *"too many arguments specified"*.
+
+Publish the SSDT project — it is the authoritative schema:
+
+```bash
+# 1. Build the DACPAC
+cd ShopNStopDB
+dotnet build ShopNStopDB.sqlproj -c Release
+ls bin/Release/*.dacpac            # confirm the exact filename before continuing
+
+# 2. Preview the change set FIRST — writes a report, changes nothing
+sqlpackage /Action:DeployReport \
+           /SourceFile:"bin/Release/ShopNStopDB.dacpac" \
+           /TargetConnectionString:"<production connection string>" \
+           /OutputPath:"deploy-report.xml"
+
+# 3. Review deploy-report.xml, then publish.
+#    BlockOnPossibleDataLoss=True aborts rather than dropping populated columns.
+#    DropObjectsNotInSource=False leaves anything not in the project untouched.
+sqlpackage /Action:Publish \
+           /SourceFile:"bin/Release/ShopNStopDB.dacpac" \
+           /TargetConnectionString:"<production connection string>" \
+           /p:BlockOnPossibleDataLoss=True \
+           /p:DropObjectsNotInSource=False
+```
+
+**Never publish with `BlockOnPossibleDataLoss=False` against a database that
+already holds live data** — it will drop columns without warning.
+
+For a **fresh** database, note that
+[`Script.PostDeployment.sql`](ShopNStopDB/Script.PostDeployment.sql) currently has
+all of its seed `:r` includes commented out, so a DACPAC publish creates the
+schema but inserts no reference data. Load the catalog separately with
+[`db/seed.sql`](db/seed.sql) — see [`db/MIGRATIONS.md`](db/MIGRATIONS.md).
+
+---
+
+### Post-deployment verification
+
+Run these against the **API host** before declaring a deployment healthy. Each
+one is anonymous, so no token is needed.
+
+```bash
+API=https://<api-host>
+
+curl -s -o /dev/null -w '%{http_code}\n' "$API/"              # 404 with an empty body is CORRECT — no route at /
+curl -s "$API/api/menu"          | head -c 200                # 200 + category tree  → DB connected and seeded
+curl -s "$API/api/products"      | head -c 200                # 200 + items array    → catalog procs up to date
+curl -s "$API/api/products/1"    | head -c 200                # 200 + product detail
+curl -s "$API/api/banners/stack" | head -c 200                # 200 → the newer procs are present
+
+# CORS: must echo back the UI origin, or the browser will block every call
+curl -s -D- -o /dev/null -H "Origin: https://<ui-host>" "$API/api/menu" | grep -i access-control-allow-origin
+```
+
+Then load the **UI host** with DevTools open on the Network tab and confirm the
+`/api/*` requests go to the API host and return `application/json` — not
+`text/html`.
+
+---
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `405 Not Allowed` on any `POST /api/*`; `/api/*` GETs return HTML | UI bundle is calling its own host, not the API | Rebuild the UI with `VITE_API_URL` |
+| Page loads, nothing populates; console shows CORS errors | `AllowedOrigins` does not match the UI origin | Set `AllowedOrigins` to the exact UI origin and restart the API |
+| `GET /api/products` → `500`, but `/api/products/1` → `200` | Stale `usp_Catalog_Product_Search` (12 params vs the 16 the API sends) | Publish the SSDT DACPAC |
+| Admin / Seller / Inventory pages → `500` | Database is missing procedures that exist only in `ShopNStopDB/` | Publish the SSDT DACPAC |
+| `404` with an empty body at the API root | **Not an error.** The API maps no route at `/` | None — check `/api/menu` instead |
+| API starts but every call → `500` | `ConnectionStrings__ShopNShop` still the `localhost\SQLEXPRESS` placeholder | Set the real connection string as an environment variable |
+
+---
+
 ## Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, quality checks, and the pull-request process.
