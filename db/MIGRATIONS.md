@@ -52,6 +52,32 @@ dotnet build                # produces the .dacpac
 
 ---
 
+## Regenerating schema.sql
+
+`schema.sql` is **generated** from the SSDT project — do not hand-edit it. After any
+change under `ShopNStopDB/`, regenerate it so Docker bootstraps stay in sync:
+
+```bash
+cd ShopNStopDB && dotnet build ShopNStopDB.sqlproj -c Release && cd ..
+sqlcmd -S localhost\SQLEXPRESS -C -Q "CREATE DATABASE ScratchEmpty;"        # must be EMPTY
+sqlpackage /Action:Script /SourceFile:ShopNStopDB/bin/Release/ShopNStopDB.dacpac \
+           /TargetServerName:localhost\SQLEXPRESS /TargetDatabaseName:ScratchEmpty \
+           /TargetTrustServerCertificate:True /OutputPath:db/schema.sql
+# then: replace ScratchEmpty -> ShopNShop_db in the file, delete the two
+# ':setvar DefaultDataPath' / ':setvar DefaultLogPath' lines (machine-specific),
+# and drop the scratch database.
+```
+
+Verify on a throwaway database before committing: apply `schema.sql` then `seed.sql`
+and confirm `SELECT COUNT(*) FROM sys.procedures` = 198 and `sys.tables` = 65.
+
+> The schema and stored-procedure patches below are already part of the SSDT project,
+> hence already included in `schema.sql` (checked: every procedure they create is
+> present). The `*_data.sql` patches are data only. Use them only to update an old database by hand; the DACPAC publish
+> in the README is the preferred route.
+
+---
+
 ## Incremental patches
 
 Dated, additive migration scripts live in [`db/patches/`](./patches) and are applied

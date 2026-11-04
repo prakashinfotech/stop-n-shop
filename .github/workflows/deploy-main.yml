@@ -67,6 +67,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./stopnshop-ui
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || '/api' }}
           push: true
           tags: |
             ghcr.io/${{ steps.owner.outputs.name }}/stopnshop-ui:latest
