@@ -170,6 +170,15 @@ The `db` container builds the database from the SSDT project (`ShopNStopDB/`) **
 
 > **Updating a server that is already running?** Pull the latest code, then `docker compose build --no-cache && docker compose up -d` (add `-f docker-compose.prod.yml` in production) — the database updates itself. Check `docker compose logs db | grep db-init` for `Schema sync OK`. **Never use `docker compose down -v`** on live data. Public-domain setups: see [Deploying behind a public domain](#deploying-behind-a-public-domain-split-host-setup).
 
+### Test / Demo Accounts
+
+Seeded by [`ShopNStopDB/dbo/Data/`](ShopNStopDB/dbo/Data/) on first start — only on a fresh database with an empty catalog (see [`db/MIGRATIONS.md`](db/MIGRATIONS.md)). Password hashes are committed to the repo with the plaintext documented in a comment, so these are **local-dev credentials only** — rotate or remove them before any environment that isn't strictly local.
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Seller | `demoseller@stopnshop.com` | `Test@123` | "Demo Seller Store" — already Approved/Active. Owns the seeded product catalog, so this is the account to use for fixing a broken/incorrect product image via the Seller Product Wizard. |
+| Admin | `admin@stopnshop.com` | `Test@123` | Approve/reject sellers & products, view moderation queue. **Cannot** edit product content or images directly — that's seller-only; see [`ShopNStopDB/dbo/Data/Seed_AdminUser.sql`](ShopNStopDB/dbo/Data/Seed_AdminUser.sql). |
+
 ### Option B — Manual (run each tier locally)
 
 **Database** — follow [`db/MIGRATIONS.md`](db/MIGRATIONS.md) (Docker, `sqlcmd`, or SSDT publish).
@@ -305,9 +314,19 @@ dotnet test tests/StopNShop.Api.IntegrationTests
 Local and production runs both use Docker Compose:
 
 ```bash
-docker compose up -d --build                       # local (db + api + ui)
-docker compose -f docker-compose.prod.yml up -d    # production compose
+docker compose up -d --build                               # local (db + api + ui)
+docker compose -f docker-compose.prod.yml up -d --build    # production compose
 ```
+
+> 🚀 **Deploying to the public domain? Follow [`deploy/README.md`](deploy/README.md).**
+> It is the authoritative runbook and ships the edge nginx vhosts in
+> [`deploy/nginx/`](deploy/nginx/). Verify any deployment with
+> [`scripts/verify-deploy.sh`](scripts/verify-deploy.sh).
+>
+> ⚠️ **Never build the UI on the host and copy `dist/` to a web root.** A statically
+> served `dist/` has no `/api` proxy, so `POST /api/*` returns `405 Not Allowed` and
+> every `/api/*` GET returns `index.html`. The public vhost must proxy to the `ui`
+> container on port 3000, which already proxies `/api` and `/uploads` to the API.
 
 CI/CD pipelines live in [`.github/workflows/`](.github/workflows/) (API, UI, and database deploys, plus test and regression workflows). Configure the production database connection, JWT secret, and any integration credentials as environment variables / repository secrets in your hosting platform — **never commit them**.
 
@@ -475,7 +494,8 @@ Then load the **UI host** with DevTools open on the Network tab and confirm the
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `405 Not Allowed` on any `POST /api/*`; `/api/*` GETs return HTML | UI bundle is calling its own host, not the API | Rebuild the UI with `VITE_API_URL` |
+| `405 Not Allowed` on any `POST /api/*`; `/api/*` GETs return HTML | The vhost is serving a hand-built `dist/` from disk, so `/api` hits a static file server with no proxy | Point the vhost at the `ui` container — install [`deploy/nginx/stop-n-shop.conf`](deploy/nginx/stop-n-shop.conf); see [`deploy/README.md`](deploy/README.md) |
+| `api` container exits immediately with `required variable ALLOWED_ORIGINS is missing` | Intentional — production refuses to boot with a localhost CORS default | Set `ALLOWED_ORIGINS` to the exact UI origin in `.env` |
 | Page loads, nothing populates; console shows CORS errors | `AllowedOrigins` does not match the UI origin | Set `AllowedOrigins` to the exact UI origin and restart the API |
 | `GET /api/products` → `500`, but `/api/products/1` → `200` | Stale `usp_Catalog_Product_Search` (12 params vs the 16 the API sends) | Publish the SSDT DACPAC |
 | Admin / Seller / Inventory pages → `500` | Database is missing procedures that exist only in `ShopNStopDB/` | Publish the SSDT DACPAC |

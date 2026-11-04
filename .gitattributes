@@ -7,6 +7,9 @@
 # SQL files: LF in repo
 *.sql text eol=lf
 
+# nginx configs are copied onto Linux hosts / into containers — keep LF
+*.conf text eol=lf
+
 # Windows-only files can use CRLF
 *.bat text eol=crlf
 *.ps1 text eol=crlf
