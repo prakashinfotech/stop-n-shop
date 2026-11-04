@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRegister } from './useAuth';
 import { useAuthContext } from '../../context/AuthContext';
+import { FieldError } from '../../components/ui/FieldError';
 
 const BRAND_IMAGE = 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=900&q=80';
 
@@ -83,7 +84,7 @@ export const SignupPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* Left brand panel */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
         <img src={BRAND_IMAGE} alt="StopNShop fashion" className="absolute inset-0 w-full h-full object-cover" />
@@ -124,7 +125,7 @@ export const SignupPage: React.FC = () => {
       </div>
 
       {/* Right form panel */}
-      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-12 bg-surface overflow-y-auto">
+      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-8 bg-surface overflow-y-auto">
         <div className="w-full max-w-md">
 
           <Link to="/" className="flex lg:hidden justify-center mb-8">
@@ -133,8 +134,8 @@ export const SignupPage: React.FC = () => {
             </span>
           </Link>
 
-          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-8">
-            <div className="mb-6">
+          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-6">
+            <div className="mb-4">
               <h1 className="font-display text-2xl font-bold text-content mb-1">Create account</h1>
               <p className="text-content-muted text-sm">
                 Already have an account?{' '}
@@ -149,7 +150,7 @@ export const SignupPage: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
               {/* Name row */}
               <div className="grid grid-cols-2 gap-3">
                 <FieldWrapper label="First name" error={errors.firstName?.message}>
@@ -210,7 +211,7 @@ export const SignupPage: React.FC = () => {
               </FieldWrapper>
 
               {/* Gender (optional) */}
-              <FieldWrapper label="Gender (optional)">
+              <FieldWrapper label="Gender (optional)" noValidation>
                 <select
                   {...register('gender')}
                   className="w-full px-4 py-3 border border-outline rounded-xl text-sm text-content bg-surface-elevated focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition appearance-none"
@@ -242,19 +243,21 @@ export const SignupPage: React.FC = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {passwordValue.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                    {PASSWORD_RULES.map(({ label, test }) => {
-                      const ok = test(passwordValue);
-                      return (
-                        <div key={label} className="flex items-center gap-1.5 text-xs">
-                          <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-emerald-500' : 'text-content-subtle'}`} />
-                          <span className={ok ? 'text-emerald-600' : 'text-content-subtle'}>{label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Always rendered (not gated on passwordValue.length) — mounting this block only
+                    once typing starts was adding ~40px to the page at that moment, which stretches
+                    the flex row and resizes the brand image panel alongside it. Showing requirements
+                    upfront, all unmet initially, is also better UX than revealing them on first keystroke. */}
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {PASSWORD_RULES.map(({ label, test }) => {
+                    const ok = test(passwordValue);
+                    return (
+                      <div key={label} className="flex items-center gap-1.5 text-xs">
+                        <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-emerald-500' : 'text-content-subtle'}`} />
+                        <span className={ok ? 'text-emerald-600' : 'text-content-subtle'}>{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </FieldWrapper>
 
               {/* Confirm password */}
@@ -277,21 +280,19 @@ export const SignupPage: React.FC = () => {
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {passwordValue.length > 0 && watch('confirmPassword', '').length > 0 && (
-                  <div className="mt-2">
-                    {passwordValue === watch('confirmPassword') ? (
-                      <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                        Passwords match
-                      </div>
+                <div className="mt-2 min-h-4 flex items-center gap-1.5 text-xs" aria-live="polite">
+                  {passwordValue.length > 0 && watch('confirmPassword', '').length > 0 && (
+                    passwordValue === watch('confirmPassword') ? (
+                      <span className="flex items-center gap-1.5 text-emerald-600">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Passwords match
+                      </span>
                     ) : (
-                      <div className="flex items-center gap-1.5 text-xs text-red-600">
-                        <AlertCircle className="h-3.5 w-3.5 text-red-500" />
-                        Passwords do not match
-                      </div>
-                    )}
-                  </div>
-                )}
+                      <span className="flex items-center gap-1.5 text-red-600">
+                        <AlertCircle className="h-3.5 w-3.5 text-red-500" /> Passwords do not match
+                      </span>
+                    )
+                  )}
+                </div>
               </FieldWrapper>
 
               {/* Terms */}
@@ -309,11 +310,7 @@ export const SignupPage: React.FC = () => {
                     <Link to="/privacy" className="text-brand-500 hover:underline">Privacy Policy</Link>
                   </span>
                 </label>
-                <p className={`mt-1 text-xs flex items-center gap-1 overflow-hidden transition-all ${
-                  errors.terms ? 'text-red-600 h-auto' : 'h-0'
-                }`}>
-                  {errors.terms && <><AlertCircle className="h-3 w-3" /> {errors.terms.message}</>}
-                </p>
+                <FieldError message={errors.terms?.message} />
               </div>
 
               <button
@@ -347,17 +344,16 @@ const inputClass = (hasError: boolean, hasIcon: boolean, hasRightIcon = false) =
 interface FieldWrapperProps {
   label: string;
   error?: string;
+  /** Set for fields with no validation rule (e.g. an optional select) — they can
+   * never show an error, so reserving the line under them is pure wasted space. */
+  noValidation?: boolean;
   children: React.ReactNode;
 }
 
-const FieldWrapper: React.FC<FieldWrapperProps> = ({ label, error, children }) => (
+const FieldWrapper: React.FC<FieldWrapperProps> = ({ label, error, noValidation, children }) => (
   <div>
-    <label className="block text-sm font-medium text-content mb-1.5">{label}</label>
+    <label className="block text-sm font-medium text-content mb-1">{label}</label>
     {children}
-    <p className={`mt-1.5 text-xs flex items-center gap-1 overflow-hidden transition-all ${
-      error ? 'text-red-600 h-auto' : 'h-0'
-    }`}>
-      {error && <><AlertCircle className="h-3 w-3" /> {error}</>}
-    </p>
+    {!noValidation && <FieldError message={error} />}
   </div>
 );

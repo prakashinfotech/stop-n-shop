@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useSellerAuth } from './useSellerAuth';
+import { FieldError } from '../../components/ui/FieldError';
 
 const BRAND_IMAGE = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=900&q=80';
 
@@ -44,7 +45,7 @@ export const SellerLoginPage: React.FC = () => {
     }`;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* ── Left brand panel ──────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
         <img src={BRAND_IMAGE} alt="StopNShop seller" className="absolute inset-0 w-full h-full object-cover" />
@@ -85,7 +86,7 @@ export const SellerLoginPage: React.FC = () => {
       </div>
 
       {/* ── Right form panel ──────────────────────────────────────── */}
-      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-12 bg-surface">
+      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-8 bg-surface overflow-y-auto">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="flex lg:hidden justify-center mb-8">
@@ -95,8 +96,8 @@ export const SellerLoginPage: React.FC = () => {
           </Link>
 
           {/* Card */}
-          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-8">
-            <div className="mb-6">
+          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-6">
+            <div className="mb-4">
               <h1 className="font-display text-2xl font-bold text-content mb-1">Welcome back</h1>
               <p className="text-content-muted text-sm">
                 Don't have an account?{' '}
@@ -117,7 +118,7 @@ export const SellerLoginPage: React.FC = () => {
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-3">
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-content mb-1.5">
+                <label htmlFor="email" className="block text-sm font-medium text-content mb-1">
                   Email address
                 </label>
                 <div className="relative">
@@ -131,16 +132,12 @@ export const SellerLoginPage: React.FC = () => {
                     className={`${inputClass(!!errors.email)} pl-10`}
                   />
                 </div>
-                {errors.email ? (
-                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {errors.email.message}
-                  </p>
-                ) : null}
+                <FieldError message={errors.email?.message} />
               </div>
 
               {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-content mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-content mb-1">
                   Password
                 </label>
                 <div className="relative">
@@ -161,11 +158,7 @@ export const SellerLoginPage: React.FC = () => {
                     {showPassword ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
                 </div>
-                {errors.password ? (
-                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {errors.password.message}
-                  </p>
-                ) : null}
+                <FieldError message={errors.password?.message} />
               </div>
 
               {/* Remember me & Forgot password */}

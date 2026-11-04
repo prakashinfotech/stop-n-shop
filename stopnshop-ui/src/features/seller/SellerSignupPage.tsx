@@ -5,6 +5,7 @@ import { useSellerAuth } from './useSellerAuth';
 import { useOtpTimer } from '../../hooks/useOtpTimer';
 import { OtpInput } from '../../components/auth/OtpInput';
 import { useToast } from '../../components/ui/Toast';
+import { FieldError } from '../../components/ui/FieldError';
 
 const BRAND_IMAGE = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=900&q=80';
 
@@ -25,13 +26,9 @@ const PASSWORD_RULES = [
 
 const FieldWrapper: React.FC<{ label: string; error?: string; children: React.ReactNode }> = ({ label, error, children }) => (
   <div>
-    <label className="block text-sm font-medium text-content mb-1.5">{label}</label>
+    <label className="block text-sm font-medium text-content mb-1">{label}</label>
     {children}
-    {error ? (
-      <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
-        <AlertCircle className="h-3 w-3" /> {error}
-      </p>
-    ) : null}
+    <FieldError message={error} />
   </div>
 );
 
@@ -184,7 +181,7 @@ export const SellerSignupPage: React.FC = () => {
     }`;
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* ── Left brand panel ──────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
         <img src={BRAND_IMAGE} alt="StopNShop seller" className="absolute inset-0 w-full h-full object-cover" />
@@ -225,7 +222,7 @@ export const SellerSignupPage: React.FC = () => {
       </div>
 
       {/* ── Right form panel ──────────────────────────────────────── */}
-      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-12 bg-surface overflow-y-auto">
+      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-8 bg-surface overflow-y-auto">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="flex lg:hidden justify-center mb-8">
@@ -235,8 +232,8 @@ export const SellerSignupPage: React.FC = () => {
           </Link>
 
           {/* Card */}
-          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-8">
-            <div className="mb-6">
+          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-6">
+            <div className="mb-4">
               <h1 className="font-display text-2xl font-bold text-content mb-1">Create seller account</h1>
               <p className="text-content-muted text-sm">
                 Already have an account?{' '}
@@ -247,7 +244,7 @@ export const SellerSignupPage: React.FC = () => {
             </div>
 
             {/* Step indicator */}
-            <div className="mb-6 space-y-2">
+            <div className="mb-4 space-y-2">
               <div className="flex items-center justify-between text-xs text-content-muted">
                 <span>
                   {step === 'credentials' && 'Step 1 of 3'}
@@ -341,19 +338,19 @@ export const SellerSignupPage: React.FC = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {formData.password.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                      {PASSWORD_RULES.map(({ label, test }) => {
-                        const ok = test(formData.password);
-                        return (
-                          <div key={label} className="flex items-center gap-1.5 text-xs">
-                            <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-emerald-500' : 'text-content-subtle'}`} />
-                            <span className={ok ? 'text-emerald-600' : 'text-content-subtle'}>{label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {/* Always rendered — mounting this only once typing starts stretched the flex
+                      row and resized the brand image panel alongside it. */}
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    {PASSWORD_RULES.map(({ label, test }) => {
+                      const ok = test(formData.password);
+                      return (
+                        <div key={label} className="flex items-center gap-1.5 text-xs">
+                          <CheckCircle2 className={`h-3.5 w-3.5 ${ok ? 'text-emerald-500' : 'text-content-subtle'}`} />
+                          <span className={ok ? 'text-emerald-600' : 'text-content-subtle'}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </FieldWrapper>
 
                 <FieldWrapper label="Confirm Password *" error={errors.confirmPassword}>
@@ -376,21 +373,19 @@ export const SellerSignupPage: React.FC = () => {
                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {formData.password.length > 0 && formData.confirmPassword.length > 0 && (
-                    <div className="mt-2">
-                      {formData.password === formData.confirmPassword ? (
-                        <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                          Passwords match
-                        </div>
+                  <div className="mt-2 min-h-4 flex items-center gap-1.5 text-xs" aria-live="polite">
+                    {formData.password.length > 0 && formData.confirmPassword.length > 0 && (
+                      formData.password === formData.confirmPassword ? (
+                        <span className="flex items-center gap-1.5 text-emerald-600">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" /> Passwords match
+                        </span>
                       ) : (
-                        <div className="flex items-center gap-1.5 text-xs text-red-600">
-                          <AlertCircle className="h-3.5 w-3.5 text-red-500" />
-                          Passwords do not match
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        <span className="flex items-center gap-1.5 text-red-600">
+                          <AlertCircle className="h-3.5 w-3.5 text-red-500" /> Passwords do not match
+                        </span>
+                      )
+                    )}
+                  </div>
                 </FieldWrapper>
 
                 <button
@@ -432,11 +427,9 @@ export const SellerSignupPage: React.FC = () => {
                   <OtpInput value={phoneOtp} onChange={setPhoneOtp} hasError={!!phoneOtpError} />
                 </div>
 
-                {phoneOtpError && (
-                  <p className="text-xs text-red-600 flex items-center justify-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {phoneOtpError}
-                  </p>
-                )}
+                <p className="min-h-4 text-xs text-red-600 flex items-center justify-center gap-1" aria-live="polite">
+                  {phoneOtpError && <><AlertCircle className="h-3 w-3" /> {phoneOtpError}</>}
+                </p>
 
                 <button
                   type="submit"
@@ -469,11 +462,9 @@ export const SellerSignupPage: React.FC = () => {
                   <OtpInput value={emailOtp} onChange={setEmailOtp} hasError={!!emailOtpError} />
                 </div>
 
-                {emailOtpError && (
-                  <p className="text-xs text-red-600 flex items-center justify-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {emailOtpError}
-                  </p>
-                )}
+                <p className="min-h-4 text-xs text-red-600 flex items-center justify-center gap-1" aria-live="polite">
+                  {emailOtpError && <><AlertCircle className="h-3 w-3" /> {emailOtpError}</>}
+                </p>
 
                 <div className="text-center text-sm">
                   {isRunning ? (

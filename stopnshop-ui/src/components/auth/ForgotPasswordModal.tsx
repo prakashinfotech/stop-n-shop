@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, ArrowRight, ArrowLeft, X } from 'lucide-react';
+import { FieldError } from '../ui/FieldError';
 import { authApi } from '../../api/authApi';
 import { useToast } from '../ui/Toast';
 import { OtpInput } from './OtpInput';
@@ -178,11 +179,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
                       }`}
                     />
                   </div>
-                  {emailForm.formState.errors.email && (
-                    <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> {emailForm.formState.errors.email.message}
-                    </p>
-                  )}
+                  <FieldError message={emailForm.formState.errors.email?.message} />
                 </div>
 
                 <button
@@ -224,11 +221,9 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
 
               <form onSubmit={handleVerifyOtp} noValidate className="space-y-4">
                 <OtpInput value={otp} onChange={setOtp} hasError={!!otpError} />
-                {otpError && (
-                  <p className="text-xs text-red-600 flex items-center justify-center gap-1">
-                    <AlertCircle className="h-3 w-3" /> {otpError}
-                  </p>
-                )}
+                <p className="min-h-4 text-xs text-red-600 flex items-center justify-center gap-1" aria-live="polite">
+                  {otpError && <><AlertCircle className="h-3 w-3" /> {otpError}</>}
+                </p>
 
                 <div className="text-center text-xs">
                   {isRunning ? (
@@ -301,11 +296,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
                       })}
                     </div>
                   )}
-                  {passwordForm.formState.errors.newPassword && (
-                    <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> {passwordForm.formState.errors.newPassword.message}
-                    </p>
-                  )}
+                  <FieldError message={passwordForm.formState.errors.newPassword?.message} />
                 </div>
 
                 <div>
@@ -326,11 +317,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ onClos
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  {passwordForm.formState.errors.confirmPassword && (
-                    <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" /> {passwordForm.formState.errors.confirmPassword.message}
-                    </p>
-                  )}
+                  <FieldError message={passwordForm.formState.errors.confirmPassword?.message} />
                 </div>
 
                 <button

@@ -11,6 +11,7 @@ import { useLogin } from './useAuth';
 import { useOtpTimer } from '../../hooks/useOtpTimer';
 import { OtpInput } from '../../components/auth/OtpInput';
 import { useToast } from '../../components/ui/Toast';
+import { FieldError } from '../../components/ui/FieldError';
 import { ForgotPasswordModal } from '../../components/auth/ForgotPasswordModal';
 
 const BRAND_IMAGE = 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=900&q=80';
@@ -123,7 +124,7 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="h-screen flex overflow-hidden">
       {/* ── Left brand panel ──────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden">
         <img src={BRAND_IMAGE} alt="StopNShop fashion" className="absolute inset-0 w-full h-full object-cover" />
@@ -159,7 +160,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       {/* ── Right form panel ──────────────────────────────────────── */}
-      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-12 bg-surface">
+      <div className="w-full lg:w-[55%] flex items-center justify-center px-6 py-8 bg-surface overflow-y-auto">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link to="/" className="flex lg:hidden justify-center mb-8">
@@ -169,8 +170,8 @@ export const LoginPage: React.FC = () => {
           </Link>
 
           {/* Card */}
-          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-8">
-            <div className="mb-6">
+          <div className="bg-surface-elevated rounded-2xl shadow-sm border border-outline/60 p-6">
+            <div className="mb-4">
               <h1 className="font-display text-2xl font-bold text-content mb-1">Welcome back</h1>
               <p className="text-content-muted text-sm">
                 New here?{' '}
@@ -181,7 +182,7 @@ export const LoginPage: React.FC = () => {
             </div>
 
             {/* Tab switcher */}
-            <div className="flex bg-surface-sunken rounded-xl p-1 mb-6">
+            <div className="flex bg-surface-sunken rounded-xl p-1 mb-4">
               <button
                 type="button"
                 onClick={() => setTab('email')}
@@ -208,7 +209,7 @@ export const LoginPage: React.FC = () => {
 
             {/* ── Email tab ─────────────────────────────────────── */}
             {tab === 'email' && (
-              <form onSubmit={handleSubmit(onEmailSubmit)} noValidate className="space-y-4">
+              <form onSubmit={handleSubmit(onEmailSubmit)} noValidate className="space-y-3">
                 {serverError && (
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2.5 text-sm">
                     <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -217,7 +218,7 @@ export const LoginPage: React.FC = () => {
                 )}
 
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-content mb-1.5">
+                  <label htmlFor="email" className="block text-sm font-medium text-content mb-1">
                     Email address
                   </label>
                   <div className="relative">
@@ -233,15 +234,11 @@ export const LoginPage: React.FC = () => {
                       }`}
                     />
                   </div>
-                  <p className={`mt-1.5 text-xs flex items-center gap-1 overflow-hidden transition-all ${
-                    errors.email ? 'text-red-600 h-auto' : 'h-0'
-                  }`}>
-                    {errors.email && <><AlertCircle className="h-3 w-3" /> {errors.email.message}</>}
-                  </p>
+                  <FieldError message={errors.email?.message} />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <label htmlFor="password" className="block text-sm font-medium text-content">
                       Password
                     </label>
@@ -270,11 +267,7 @@ export const LoginPage: React.FC = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
-                  <p className={`mt-1.5 text-xs flex items-center gap-1 overflow-hidden transition-all ${
-                    errors.password ? 'text-red-600 h-auto' : 'h-0'
-                  }`}>
-                    {errors.password && <><AlertCircle className="h-3 w-3" /> {errors.password.message}</>}
-                  </p>
+                  <FieldError message={errors.password?.message} />
                 </div>
 
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -302,7 +295,7 @@ export const LoginPage: React.FC = () => {
                 {step === 'mobile' && (
                   <form onSubmit={handleSendOtp} noValidate className="space-y-4">
                     <div>
-                      <label htmlFor="mobile" className="block text-sm font-medium text-content mb-1.5">
+                      <label htmlFor="mobile" className="block text-sm font-medium text-content mb-1">
                         Mobile Number
                       </label>
                       <div className="flex">
@@ -321,11 +314,7 @@ export const LoginPage: React.FC = () => {
                           }`}
                         />
                       </div>
-                      <p className={`mt-1.5 text-xs flex items-center gap-1 overflow-hidden transition-all ${
-                        mobileError ? 'text-red-600 h-auto' : 'h-0'
-                      }`}>
-                        {mobileError && <><AlertCircle className="h-3 w-3" /> {mobileError}</>}
-                      </p>
+                      <FieldError message={mobileError} />
                     </div>
 
                     <button
@@ -363,9 +352,7 @@ export const LoginPage: React.FC = () => {
 
                     <OtpInput value={otp} onChange={setOtp} hasError={!!otpError} />
 
-                    <p className={`text-xs flex items-center justify-center gap-1 overflow-hidden transition-all ${
-                      otpError ? 'text-red-600 h-auto' : 'h-0'
-                    }`}>
+                    <p className="min-h-4 text-xs flex items-center justify-center gap-1 text-red-600" aria-live="polite">
                       {otpError && <><AlertCircle className="h-3 w-3" /> {otpError}</>}
                     </p>
 

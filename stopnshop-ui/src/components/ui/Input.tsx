@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { clsx } from 'clsx';
+import { FieldError } from './FieldError';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -54,10 +55,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
         )}
       </div>
       {error ? (
-        <p className="mt-1.5 text-xs text-red-600">{error}</p>
+        <FieldError message={error} />
       ) : hint ? (
-        <p className="mt-1.5 text-xs text-content-subtle">{hint}</p>
-      ) : null}
+        <p className="mt-1.5 min-h-4 text-xs text-content-subtle">{hint}</p>
+      ) : (
+        // Reserve the same line height even with nothing to show, so a field
+        // that later fails validation doesn't grow the form and shift
+        // everything around it (see FieldError.tsx).
+        <p className="mt-1.5 min-h-4 text-xs" aria-hidden="true" />
+      )}
     </div>
   );
 });
@@ -93,10 +99,15 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({
         {...props}
       />
       {error ? (
-        <p className="mt-1.5 text-xs text-red-600">{error}</p>
+        <FieldError message={error} />
       ) : hint ? (
-        <p className="mt-1.5 text-xs text-content-subtle">{hint}</p>
-      ) : null}
+        <p className="mt-1.5 min-h-4 text-xs text-content-subtle">{hint}</p>
+      ) : (
+        // Reserve the same line height even with nothing to show, so a field
+        // that later fails validation doesn't grow the form and shift
+        // everything around it (see FieldError.tsx).
+        <p className="mt-1.5 min-h-4 text-xs" aria-hidden="true" />
+      )}
     </div>
   );
 });
@@ -139,10 +150,15 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
         {children}
       </select>
       {error ? (
-        <p className="mt-1.5 text-xs text-red-600">{error}</p>
+        <FieldError message={error} />
       ) : hint ? (
-        <p className="mt-1.5 text-xs text-content-subtle">{hint}</p>
-      ) : null}
+        <p className="mt-1.5 min-h-4 text-xs text-content-subtle">{hint}</p>
+      ) : (
+        // Reserve the same line height even with nothing to show, so a field
+        // that later fails validation doesn't grow the form and shift
+        // everything around it (see FieldError.tsx).
+        <p className="mt-1.5 min-h-4 text-xs" aria-hidden="true" />
+      )}
     </div>
   );
 });
