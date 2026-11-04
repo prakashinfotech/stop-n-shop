@@ -1,8 +1,23 @@
+# Production stack: db + api + ui.
+#
+# Every service declares BOTH `image:` and `build:` so a single file serves two paths:
+#   docker compose -f docker-compose.prod.yml pull && up -d    -> runs the CI-built images from GHCR
+#   docker compose -f docker-compose.prod.yml up -d --build    -> builds from this working tree
+# Without `image:`, `pull` is a silent no-op and `up -d` rebuilds locally, so CI-pushed
+# images are never actually deployed.
+#
+# The ui container's nginx proxies /api and /uploads to the api container
+# (see stopnshop-ui/nginx.conf), so the public vhost must proxy the WHOLE site
+# to the ui container on port 3000 — see deploy/nginx/ for ready-made vhosts.
+
 services:
   db:
+    image: ${IMAGE_PREFIX:-stopnshop}/stopnshop-db:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: db/Dockerfile
+    container_name: stopnshop-db
+    restart: unless-stopped
     environment:
       SA_PASSWORD: ${SA_PASSWORD}
       ACCEPT_EULA: "Y"
@@ -17,18 +32,27 @@ services:
       start_period: 120s
 
   api:
+    image: ${IMAGE_PREFIX:-stopnshop}/stopnshop-api:${IMAGE_TAG:-latest}
     build:
       context: ./api
       dockerfile: Dockerfile
+    container_name: stopnshop-api
+    restart: unless-stopped
     environment:
       ConnectionStrings__ShopNShop: "Server=db,1433;Database=ShopNShop_db;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
       Jwt__SecretKey: ${JWT_SECRET_KEY}
       Jwt__Issuer: "ShopNShop"
       Jwt__Audience: "ShopNShopUsers"
-      Twilio__AccountSid: ${TWILIO_ACCOUNT_SID}
-      Twilio__AuthToken: ${TWILIO_AUTH_TOKEN}
-      Twilio__FromNumber: ${TWILIO_FROM_NUMBER}
-      AllowedOrigins: ${ALLOWED_ORIGINS}
+      Twilio__AccountSid: ${TWILIO_ACCOUNT_SID:-}
+      Twilio__AuthToken: ${TWILIO_AUTH_TOKEN:-}
+      Twilio__FromNumber: ${TWILIO_FROM_NUMBER:-}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__FromEmail: ${SMTP_FROM_EMAIL:-}
+      Smtp__ToEmail: ${SMTP_TO_EMAIL:-}
+      # Exact UI origin(s), comma-separated, scheme included, no trailing slash.
+      # Wrong value = browser blocks every call with a CORS error.
+      AllowedOrigins: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS in .env, e.g. https://stop-n-shop.prakashsoftwares.com}
       ASPNETCORE_ENVIRONMENT: Production
     ports:
       - "5000:8080"
@@ -39,11 +63,16 @@ services:
       - uploads:/app/wwwroot/uploads
 
   ui:
+    image: ${IMAGE_PREFIX:-stopnshop}/stopnshop-ui:${IMAGE_TAG:-latest}
     build:
       context: ./stopnshop-ui
       dockerfile: Dockerfile
       args:
+        # Baked into the JS bundle at BUILD time — changing it needs an image rebuild.
+        # Leave as /api for the same-origin setup the shipped vhosts assume.
         VITE_API_URL: ${VITE_API_URL:-/api}
+    container_name: stopnshop-ui
+    restart: unless-stopped
     ports:
       - "3000:80"
     depends_on:

@@ -1,6 +1,11 @@
 import axios from 'axios';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+// Same-origin '/api' is the safe default: in a Docker deploy the ui container's
+// nginx proxies /api -> api:8080 (see stopnshop-ui/nginx.conf), and behind a public
+// domain the edge vhost proxies the whole site to that container. A hardcoded
+// localhost fallback would instead send every visitor's browser to their OWN machine.
+// Override at BUILD time with VITE_API_URL for a split-host deploy.
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 export const axiosInstance = axios.create({
   baseURL: API_BASE_URL,

@@ -99,6 +99,9 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      # ALLOWED_ORIGINS must be the exact public UI origin. If it is missing the api
+      # container refuses to start (docker-compose.prod.yml enforces it) rather than
+      # booting with a localhost default that makes the browser block every call.
       - name: Write .env
         env:
           SA_PASSWORD:        ${{ secrets.SA_PASSWORD }}
@@ -106,22 +109,42 @@ jobs:
           TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
           TWILIO_AUTH_TOKEN:  ${{ secrets.TWILIO_AUTH_TOKEN }}
           TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
+          SMTP_USER:          ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL:    ${{ secrets.SMTP_FROM_EMAIL }}
+          SMTP_TO_EMAIL:      ${{ secrets.SMTP_TO_EMAIL }}
+          ALLOWED_ORIGINS:    ${{ vars.ALLOWED_ORIGINS }}
+          VITE_API_URL:       ${{ vars.VITE_API_URL || '/api' }}
           IMAGE_PREFIX:       ghcr.io/${{ steps.owner.outputs.name }}
+          IMAGE_TAG:          ${{ github.sha }}
         run: |
+          if (-not $env:ALLOWED_ORIGINS) {
+            Write-Error "Repository variable ALLOWED_ORIGINS is not set. Set it to the public UI origin (e.g. https://stop-n-shop.prakashsoftwares.com) under Settings > Secrets and variables > Actions > Variables."
+            exit 1
+          }
           @"
           SA_PASSWORD=$env:SA_PASSWORD
           JWT_SECRET_KEY=$env:JWT_SECRET_KEY
           TWILIO_ACCOUNT_SID=$env:TWILIO_ACCOUNT_SID
           TWILIO_AUTH_TOKEN=$env:TWILIO_AUTH_TOKEN
           TWILIO_FROM_NUMBER=$env:TWILIO_FROM_NUMBER
+          SMTP_USER=$env:SMTP_USER
+          SMTP_PASSWORD=$env:SMTP_PASSWORD
+          SMTP_FROM_EMAIL=$env:SMTP_FROM_EMAIL
+          SMTP_TO_EMAIL=$env:SMTP_TO_EMAIL
+          ALLOWED_ORIGINS=$env:ALLOWED_ORIGINS
+          VITE_API_URL=$env:VITE_API_URL
           IMAGE_PREFIX=$env:IMAGE_PREFIX
+          IMAGE_TAG=$env:IMAGE_TAG
           "@ | Set-Content -Path .env -Encoding utf8
 
+      # docker-compose.prod.yml — NOT the dev compose, which hardcodes
+      # AllowedOrigins to http://localhost:3000 and would break CORS in production.
       - name: Pull latest images
-        run: docker compose pull
+        run: docker compose -f docker-compose.prod.yml pull
 
       - name: Restart containers
-        run: docker compose up -d
+        run: docker compose -f docker-compose.prod.yml up -d
 
       - name: Wait for DB healthy
         run: |
@@ -131,10 +154,38 @@ jobs:
             if (-not $status) { $status = "missing" }
             Write-Host "  [$i] db=$status"
             if ($status -eq "healthy") { Write-Host "DB healthy."; break }
-            if ($i -eq 30) { docker compose logs db --tail=60; exit 1 }
+            if ($i -eq 30) { docker compose -f docker-compose.prod.yml logs db --tail=60; exit 1 }
             Start-Sleep 10
           }
-          docker compose ps
+          docker compose -f docker-compose.prod.yml ps
+
+      # Smoke test the ui container directly on port 3000 — this is the wiring that
+      # broke in production. If /api/menu answers with HTML instead of JSON, the ui
+      # container is not proxying to the api container and the deploy is bad.
+      # (This checks the container; the public vhost must also proxy to :3000 —
+      # see deploy/nginx/ and run scripts/verify-deploy.sh against the live domain.)
+      - name: Smoke test ui -> api proxy
+        run: |
+          $ok = $false
+          for ($i = 1; $i -le 12; $i++) {
+            try {
+              $r = Invoke-WebRequest -Uri "http://localhost:3000/api/menu" -UseBasicParsing -TimeoutSec 15
+              $ct = $r.Headers['Content-Type']
+              Write-Host "  [$i] status=$($r.StatusCode) content-type=$ct"
+              if ($ct -like 'application/json*') { $ok = $true; break }
+              Write-Host "      got HTML - the /api proxy is not working yet"
+            } catch {
+              Write-Host "  [$i] not ready: $($_.Exception.Message)"
+            }
+            Start-Sleep 10
+          }
+          if (-not $ok) {
+            Write-Error "ui container did not proxy /api/menu to the API as JSON."
+            docker compose -f docker-compose.prod.yml logs ui --tail=40
+            docker compose -f docker-compose.prod.yml logs api --tail=60
+            exit 1
+          }
+          Write-Host "ui -> api proxy OK."
 
       - name: Clean up old images
         run: docker image prune -f
