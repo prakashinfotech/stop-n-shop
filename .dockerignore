@@ -1,0 +1,12 @@
+# Root-context builds (db image) must not drag in the whole repo.
+.git
+**/node_modules
+**/bin
+**/obj
+**/dist
+stopnshop-ui
+api
+docs
+tests
+Images
+.env*

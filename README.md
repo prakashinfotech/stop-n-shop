@@ -166,9 +166,9 @@ docker compose up -d --build
 | 🔌 API | http://localhost:5000/api/products |
 | 🗄️ SQL Server | localhost:1433 |
 
-The `db` container auto-creates the database, applies the schema, and loads seed data on first boot. See [`db/MIGRATIONS.md`](db/MIGRATIONS.md) for details.
+The `db` container builds the database from the SSDT project (`ShopNStopDB/`) **on every start**: it creates the database if missing, adds any missing tables/procedures (keeping existing data), and loads seed data only when the catalog is empty. The API waits until this finishes. See [`db/MIGRATIONS.md`](db/MIGRATIONS.md).
 
-> **Deploying to a server (not just running locally)?** Read [Deploying behind a public domain](#deploying-behind-a-public-domain-split-host-setup) and [Bringing an existing database up to date](#bringing-an-existing-database-up-to-date) first. An existing database is **not** updated by `docker compose up` — it must be published from the DACPAC.
+> **Updating a server that is already running?** Pull the latest code, then `docker compose build --no-cache && docker compose up -d` (add `-f docker-compose.prod.yml` in production) — the database updates itself. Check `docker compose logs db | grep db-init` for `Schema sync OK`. **Never use `docker compose down -v`** on live data. Public-domain setups: see [Deploying behind a public domain](#deploying-behind-a-public-domain-split-host-setup).
 
 ### Option B — Manual (run each tier locally)
 
@@ -229,7 +229,7 @@ stop-n-shop/
 ├── ShopNStopDB/            # SQL Server SSDT project — source of truth
 │   └── dbo/                # Tables (65), StoredProcedures (198), Data (seeds)
 │
-├── db/                     # Docker DB bootstrap: schema.sql + seed.sql + patches/
+├── db/                     # DB Docker image: builds ShopNStopDB/ → DACPAC, syncs on start, + seed.sql
 │   └── MIGRATIONS.md       # DB setup, seed data, and incremental patches
 │
 ├── tests/                  # xUnit — UnitTests + IntegrationTests
@@ -385,14 +385,11 @@ built without `VITE_API_URL`.
 
 ### Bringing an existing database up to date
 
-> ℹ️ **[`db/schema.sql`](db/schema.sql) is generated from the SSDT project**
-> ([`ShopNStopDB/`](ShopNStopDB/)), which is the source of truth (198 procedures,
-> 65 tables). A database created from `schema.sql` + `seed.sql` matches it. An
-> **already-deployed** database does not update itself: if it was created from an
-> older `schema.sql`, or never published, it is missing procedures the API calls
-> and must be brought up to date with the DACPAC publish below. After changing
-> anything under `ShopNStopDB/`, regenerate `schema.sql` — see
-> [`db/MIGRATIONS.md`](db/MIGRATIONS.md#regenerating-schemasql).
+> ℹ️ **Docker deployments update the database automatically** — the `db` container publishes
+> the SSDT project ([`ShopNStopDB/`](ShopNStopDB/), the single source of truth: 198 procedures,
+> 65 tables) on every start, so rebuild + `up -d` is enough (see [`db/MIGRATIONS.md`](db/MIGRATIONS.md)).
+> The manual `sqlpackage` steps below are for databases **not** managed by the repo's Docker
+> setup (for example an external SQL Server).
 
 **Symptom:** the site loads, categories and brands appear, single product pages
 work — but `GET /api/products` returns `500`, and the Admin, Seller, and
