@@ -19,7 +19,8 @@ RUN dotnet build ShopNStopDB/ShopNStopDB.sqlproj -c Release -o /out \
 # ---- stage 2: SQL Server + dacpac + sqlpackage ------------------------------------------
 FROM mcr.microsoft.com/mssql/server:2022-latest
 USER root
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+# sqlpackage needs ICU (culture/collation data); do NOT enable invariant-globalization mode.
+RUN apt-get update && apt-get install -y --no-install-recommends libicu70 && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /db-init
 COPY --from=dacpac /out/ShopNStopDB.dacpac /db-init/ShopNStopDB.dacpac
 COPY --from=dacpac /sqlpackage /opt/sqlpackage
