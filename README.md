@@ -170,6 +170,15 @@ The `db` container builds the database from the SSDT project (`ShopNStopDB/`) **
 
 > **Updating a server that is already running?** Pull the latest code, then `docker compose build --no-cache && docker compose up -d` (add `-f docker-compose.prod.yml` in production) — the database updates itself. Check `docker compose logs db | grep db-init` for `Schema sync OK`. **Never use `docker compose down -v`** on live data. Public-domain setups: see [Deploying behind a public domain](#deploying-behind-a-public-domain-split-host-setup).
 
+### Test / Demo Accounts
+
+Seeded by [`ShopNStopDB/dbo/Data/`](ShopNStopDB/dbo/Data/) on first start — only on a fresh database with an empty catalog (see [`db/MIGRATIONS.md`](db/MIGRATIONS.md)). Password hashes are committed to the repo with the plaintext documented in a comment, so these are **local-dev credentials only** — rotate or remove them before any environment that isn't strictly local.
+
+| Role | Email | Password | Notes |
+|---|---|---|---|
+| Seller | `demoseller@stopnshop.com` | `Test@123` | "Demo Seller Store" — already Approved/Active. Owns the seeded product catalog, so this is the account to use for fixing a broken/incorrect product image via the Seller Product Wizard. |
+| Admin | `admin@stopnshop.com` | `Test@123` | Approve/reject sellers & products, view moderation queue. **Cannot** edit product content or images directly — that's seller-only; see [`ShopNStopDB/dbo/Data/Seed_AdminUser.sql`](ShopNStopDB/dbo/Data/Seed_AdminUser.sql). |
+
 ### Option B — Manual (run each tier locally)
 
 **Database** — follow [`db/MIGRATIONS.md`](db/MIGRATIONS.md) (Docker, `sqlcmd`, or SSDT publish).
