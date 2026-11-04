@@ -1,5 +1,6 @@
 import { axiosInstance } from './axiosInstance';
 import type { ApiResponse, PagedResult } from '../types/common.types';
+import { encodePasswordForTransit } from '../lib/passwordTransit';
 
 export interface SellerAnalytics {
   fromDate: string;
@@ -134,16 +135,21 @@ interface SubCategoryOption {
 
 export const sellerApi = {
   auth: {
+    // Password is base64-encoded before it leaves the browser — see passwordTransit.ts.
     login: (data: SellerLoginRequest) =>
       axiosInstance.post<ApiResponse<SellerAuthResponse>>(
         '/seller/auth/login',
-        data
+        { ...data, password: encodePasswordForTransit(data.password) }
       ),
 
     signup: (data: SellerSignupRequest) =>
       axiosInstance.post<ApiResponse<SellerSignupResponse>>(
         '/seller/auth/signup',
-        data
+        {
+          ...data,
+          password: encodePasswordForTransit(data.password),
+          confirmPassword: encodePasswordForTransit(data.confirmPassword),
+        }
       ),
 
     completeOnboarding: (data: SellerOnboardingRequest) =>

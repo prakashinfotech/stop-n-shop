@@ -7,6 +7,7 @@ import type {
   LoginRequest,
   SignupRequest,
 } from '../types/auth.types';
+import { encodePasswordForTransit } from '../lib/passwordTransit';
 
 export const authApi = {
   // ── OTP ──────────────────────────────────────────────────────────────────────
@@ -17,11 +18,18 @@ export const authApi = {
     axiosInstance.post<ApiResponse<AuthTokenResponse>>('/auth/otp/verify', { mobile, otp }),
 
   // ── Email / Password ─────────────────────────────────────────────────────────
+  // Password is base64-encoded before it leaves the browser — see passwordTransit.ts.
   login: (data: LoginRequest) =>
-    axiosInstance.post<ApiResponse<AuthTokenResponse>>('/auth/buyer/login', data),
+    axiosInstance.post<ApiResponse<AuthTokenResponse>>('/auth/buyer/login', {
+      ...data,
+      password: encodePasswordForTransit(data.password),
+    }),
 
   signup: (data: SignupRequest) =>
-    axiosInstance.post<ApiResponse<AuthTokenResponse>>('/auth/buyer/register', data),
+    axiosInstance.post<ApiResponse<AuthTokenResponse>>('/auth/buyer/register', {
+      ...data,
+      password: encodePasswordForTransit(data.password),
+    }),
 
   // ── Password Reset ────────────────────────────────────────────────────────────
   forgotPassword: (email: string) =>
@@ -31,7 +39,10 @@ export const authApi = {
     axiosInstance.post<ApiResponse<null>>('/auth/forgot-password/verify-otp', { userId, otp }),
 
   resetPassword: (userId: number, newPassword: string) =>
-    axiosInstance.post<ApiResponse<null>>('/auth/reset-password', { userId, newPassword }),
+    axiosInstance.post<ApiResponse<null>>('/auth/reset-password', {
+      userId,
+      newPassword: encodePasswordForTransit(newPassword),
+    }),
 
   // ── Profile ───────────────────────────────────────────────────────────────────
   getProfile: () =>

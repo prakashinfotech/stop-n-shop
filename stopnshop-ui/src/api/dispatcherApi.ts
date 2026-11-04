@@ -1,5 +1,6 @@
 import { axiosInstance } from './axiosInstance';
 import type { ApiResponse } from '../types/common.types';
+import { encodePasswordForTransit } from '../lib/passwordTransit';
 
 export interface DispatcherProfile {
   dispatcherId:            number;
@@ -83,13 +84,14 @@ export interface PagedDispatcherResult<T> {
 
 export const dispatcherApi = {
   auth: {
-    /** POST /api/auth/dispatcher/login — returns { token, expiresAt, user } */
+    /** POST /api/auth/dispatcher/login — returns { token, expiresAt, user }.
+     * Password is base64-encoded before it leaves the browser — see passwordTransit.ts. */
     login: (email: string, password: string) =>
       axiosInstance.post<ApiResponse<{
         token: string;
         expiresAt: string;
         user: { id: number; email: string; firstName?: string; lastName?: string; mobile: string; role: string };
-      }>>('/auth/dispatcher/login', { email, password }),
+      }>>('/auth/dispatcher/login', { email, password: encodePasswordForTransit(password) }),
   },
 
   getProfile: () =>

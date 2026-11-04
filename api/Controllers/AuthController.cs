@@ -24,6 +24,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Register([FromBody] SignupRequestDto req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.FirstName) || string.IsNullOrWhiteSpace(req.LastName)
             || string.IsNullOrWhiteSpace(req.Email)  || string.IsNullOrWhiteSpace(req.Mobile)
             || string.IsNullOrWhiteSpace(req.Password))
@@ -53,6 +55,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequestDto req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(ApiResponse<object>.Fail("Email and password are required."));
 
@@ -72,6 +76,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> SellerLogin([FromBody] LoginRequestDto req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(ApiResponse<object>.Fail("Email and password are required."));
 
@@ -94,6 +100,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> DispatcherLogin([FromBody] LoginRequestDto req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(ApiResponse<object>.Fail("Email and password are required."));
 
@@ -116,6 +124,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> AdminLogin([FromBody] LoginRequestDto req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(ApiResponse<object>.Fail("Email and password are required."));
 
@@ -199,6 +209,8 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
+        req.NewPassword = PasswordTransitCodec.Decode(req.NewPassword);
+
         if (req.UserId <= 0 || string.IsNullOrWhiteSpace(req.NewPassword))
             return BadRequest(ApiResponse<object>.Fail("UserId and new password are required."));
 

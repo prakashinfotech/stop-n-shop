@@ -21,6 +21,9 @@ public class SellerAuthController(ISellerAuthService svc) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Signup([FromBody] SellerSignupRequest req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+        req.ConfirmPassword = PasswordTransitCodec.Decode(req.ConfirmPassword);
+
         if (string.IsNullOrWhiteSpace(req.Email))
             return BadRequest(ApiResponse<object>.Fail("Email is required."));
         if (string.IsNullOrWhiteSpace(req.PhoneNumber))
@@ -47,6 +50,8 @@ public class SellerAuthController(ISellerAuthService svc) : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] SellerLoginRequest req)
     {
+        req.Password = PasswordTransitCodec.Decode(req.Password);
+
         if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
             return BadRequest(ApiResponse<object>.Fail("Email and password are required."));
 
