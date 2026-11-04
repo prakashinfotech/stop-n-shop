@@ -168,6 +168,8 @@ docker compose up -d --build
 
 The `db` container auto-creates the database, applies the schema, and loads seed data on first boot. See [`db/MIGRATIONS.md`](db/MIGRATIONS.md) for details.
 
+> **Deploying to a server (not just running locally)?** Read [Deploying behind a public domain](#deploying-behind-a-public-domain-split-host-setup) and [Bringing an existing database up to date](#bringing-an-existing-database-up-to-date) first. An existing database is **not** updated by `docker compose up` — it must be published from the DACPAC.
+
 ### Option B — Manual (run each tier locally)
 
 **Database** — follow [`db/MIGRATIONS.md`](db/MIGRATIONS.md) (Docker, `sqlcmd`, or SSDT publish).
@@ -344,19 +346,53 @@ reached the API.
 web server proxy to the API, so no rebuild is needed when the backend moves:
 
 ```nginx
-location /api/     { proxy_pass https://<api-host>/api/;     proxy_set_header Host $host; }
-location /uploads/ { proxy_pass https://<api-host>/uploads/; proxy_set_header Host $host; }
+location /api/ {
+    proxy_pass https://<api-host>/api/;
+    proxy_set_header Host <api-host>;     # the API's own hostname — NOT $host
+    proxy_ssl_server_name on;             # send SNI when proxying to an HTTPS upstream
+}
+location /uploads/ {
+    proxy_pass https://<api-host>/uploads/;
+    proxy_set_header Host <api-host>;
+    proxy_ssl_server_name on;
+}
 ```
+
+> Use the **API's** hostname in `Host`, not `$host`. `$host` forwards the UI's
+> hostname to the API server, which can reject or misroute the request. Reload with
+> `nginx -t && nginx -s reload`.
+
+**Confirm the new build is actually being served.** A correct build copied to the
+wrong folder, or cached, leaves the old site running with the same symptoms. After
+copying `dist/` to the web root:
+
+```bash
+# 1. The JS bundle filename (content hash) must CHANGE after a real redeploy
+curl -s https://<ui-host>/ | grep -o 'assets/index-[^"]*\.js'
+
+# 2. Split-host builds only: the bundle must contain the API host
+curl -s https://<ui-host>/assets/<that-file>.js | grep -c '<api-host>'      # expect >= 1
+
+# 3. An /api call on the UI host must return JSON, never HTML
+curl -s -o /dev/null -w '%{http_code} %{content_type}\n' https://<ui-host>/api/menu
+```
+
+If the hash is unchanged, the files are not in the folder the web server serves
+(or a CDN/browser cache is in front). If the bundle lacks the API host, it was
+built without `VITE_API_URL`.
 
 ---
 
 ### Bringing an existing database up to date
 
-> ⚠️ **[`db/schema.sql`](db/schema.sql) is a bootstrap convenience file, not the
-> source of truth.** It lags behind the SSDT project in
-> [`ShopNStopDB/`](ShopNStopDB/). A database created from `schema.sql` + `seed.sql`
-> alone is **missing 80 stored procedures and 17 tables** that the API calls, and
-> 8 more procedures have outdated parameter lists.
+> ℹ️ **[`db/schema.sql`](db/schema.sql) is generated from the SSDT project**
+> ([`ShopNStopDB/`](ShopNStopDB/)), which is the source of truth (198 procedures,
+> 65 tables). A database created from `schema.sql` + `seed.sql` matches it. An
+> **already-deployed** database does not update itself: if it was created from an
+> older `schema.sql`, or never published, it is missing procedures the API calls
+> and must be brought up to date with the DACPAC publish below. After changing
+> anything under `ShopNStopDB/`, regenerate `schema.sql` — see
+> [`db/MIGRATIONS.md`](db/MIGRATIONS.md#regenerating-schemasql).
 
 **Symptom:** the site loads, categories and brands appear, single product pages
 work — but `GET /api/products` returns `500`, and the Admin, Seller, and
@@ -387,6 +423,21 @@ sqlpackage /Action:Publish \
            /p:BlockOnPossibleDataLoss=True \
            /p:DropObjectsNotInSource=False
 ```
+
+**Verify the publish reached the database the API actually uses.** Run this
+against the database named in the API's `ConnectionStrings__ShopNShop` — not
+merely the one you published to. A publish to a different server or database name
+succeeds silently while the API keeps failing:
+
+```sql
+SELECT COUNT(*) AS procs FROM sys.procedures;                                        -- expect 198
+SELECT name FROM sys.procedures WHERE name = 'usp_Inventory_Reservation_ExpireDue';  -- expect 1 row
+```
+
+The API log is the other signal: `Could not find stored procedure
+'usp_Inventory_Reservation_ExpireDue'` (Error 2812), repeating from
+`ReservationExpiryWorker`, means the database is out of date. It stops after a
+successful publish.
 
 **Never publish with `BlockOnPossibleDataLoss=False` against a database that
 already holds live data** — it will drop columns without warning.
@@ -432,6 +483,8 @@ Then load the **UI host** with DevTools open on the Network tab and confirm the
 | `GET /api/products` → `500`, but `/api/products/1` → `200` | Stale `usp_Catalog_Product_Search` (12 params vs the 16 the API sends) | Publish the SSDT DACPAC |
 | Admin / Seller / Inventory pages → `500` | Database is missing procedures that exist only in `ShopNStopDB/` | Publish the SSDT DACPAC |
 | `404` with an empty body at the API root | **Not an error.** The API maps no route at `/` | None — check `/api/menu` instead |
+| `ReservationExpiryWorker tick failed … Could not find stored procedure` (Error 2812) in the API log | Database never published, or published to a different database than the API uses | Publish the DACPAC, then run the verification query above against the API's own connection string |
+| Rebuilt the UI but the site is unchanged | New `dist/` not copied to the served folder, or cached | Confirm the `assets/index-*.js` hash changes (see "Confirm the new build is actually being served") |
 | API starts but every call → `500` | `ConnectionStrings__ShopNShop` still the `localhost\SQLEXPRESS` placeholder | Set the real connection string as an environment variable |
 
 ---
