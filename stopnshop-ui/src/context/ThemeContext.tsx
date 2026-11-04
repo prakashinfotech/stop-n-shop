@@ -1,15 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 
 interface ThemeContextType {
-  /** User-selected preference (may be 'system'). */
+  /** User-selected preference. */
   mode: ThemeMode;
-  /** Effective theme applied to the DOM after resolving 'system'. */
+  /** Effective theme applied to the DOM (same as mode, except forced light on auth routes). */
   theme: ResolvedTheme;
   setMode: (mode: ThemeMode) => void;
-  /** Cycle: light → dark → system → light. */
+  /** Cycle: light → dark → light. */
   toggleTheme: () => void;
   /** @deprecated use `setMode` — kept for source-compatibility. */
   setTheme: (theme: ResolvedTheme) => void;
@@ -18,17 +18,15 @@ interface ThemeContextType {
 const STORAGE_KEY = 'theme';
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const getSystemTheme = (): ResolvedTheme =>
-  typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
-
 const readStoredMode = (): ThemeMode => {
   // Default is LIGHT for new visitors — matches the FOUC guard in index.html.
-  // We still respect 'system' if the user has explicitly opted in to it.
+  // There is no 'system' option: it tracked the OS preference, which for most
+  // visitors resolves to light anyway, so it was a second control that did
+  // the same thing as the first one. Any stored legacy 'system' value (from
+  // before this option was removed) falls back to light, same as unset.
   if (typeof window === 'undefined') return 'light';
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'light';
+  return stored === 'light' || stored === 'dark' ? stored : 'light';
 };
 
 const applyThemeClass = (resolved: ResolvedTheme) => {
@@ -49,9 +47,6 @@ const isAuthRoute = (pathname: string): boolean =>
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Initialize from storage synchronously so first paint matches the inline FOUC script.
   const [mode, setModeState] = useState<ThemeMode>(() => readStoredMode());
-  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
-    typeof window === 'undefined' ? 'light' : getSystemTheme(),
-  );
 
   // Track pathname so auth routes can force light without remounting the provider.
   // We can't use useLocation here (ThemeProvider sits above the Router), so we
@@ -83,17 +78,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  const userResolved: ResolvedTheme = mode === 'system' ? systemTheme : mode;
   // Force light on auth/onboarding routes regardless of the user's stored preference.
-  const resolved: ResolvedTheme = isAuthRoute(pathname) ? 'light' : userResolved;
-
-  // Track OS-level preference changes while user is on 'system'.
-  useEffect(() => {
-    const mql = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = (e: MediaQueryListEvent) => setSystemTheme(e.matches ? 'dark' : 'light');
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, []);
+  const resolved: ResolvedTheme = isAuthRoute(pathname) ? 'light' : mode;
 
   // Apply effective theme to <html> whenever the resolution changes.
   useEffect(() => {
@@ -107,7 +93,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleTheme = useCallback(() => {
     setModeState((curr) => {
-      const next: ThemeMode = curr === 'light' ? 'dark' : curr === 'dark' ? 'system' : 'light';
+      const next: ThemeMode = curr === 'light' ? 'dark' : 'light';
       window.localStorage.setItem(STORAGE_KEY, next);
       return next;
     });

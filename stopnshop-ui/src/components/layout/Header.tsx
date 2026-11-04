@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, ShoppingBag, Heart, Menu, X,
   MapPin, ChevronDown, LogOut, Package, Settings, User,
-  Sparkles, Wallet, LayoutDashboard, Sun, Moon, Monitor,
+  Sparkles, Wallet, LayoutDashboard, Sun, Moon,
 } from 'lucide-react';
 import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 import { clsx } from 'clsx';
@@ -418,9 +418,8 @@ const DropdownLink: React.FC<DropdownLinkProps> = ({ to, icon, label, onClick })
 );
 
 const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
-  { value: 'light',  label: 'Light',  Icon: Sun },
-  { value: 'dark',   label: 'Dark',   Icon: Moon },
-  { value: 'system', label: 'System', Icon: Monitor },
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark',  label: 'Dark',  Icon: Moon },
 ];
 
 const ThemeRow: React.FC = () => {

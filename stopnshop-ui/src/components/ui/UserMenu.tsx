@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { ChevronDown, LogOut, Sun, Moon } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useTheme, type ThemeMode } from '../../context/ThemeContext';
 
@@ -20,9 +20,8 @@ interface UserMenuProps {
 }
 
 const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; Icon: React.ComponentType<{ className?: string }> }> = [
-  { value: 'light',  label: 'Light',  Icon: Sun },
-  { value: 'dark',   label: 'Dark',   Icon: Moon },
-  { value: 'system', label: 'System', Icon: Monitor },
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark',  label: 'Dark',  Icon: Moon },
 ];
 
 export const UserMenu: React.FC<UserMenuProps> = ({
