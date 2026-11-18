@@ -4,9 +4,11 @@ name: Build, Push & Deploy
 #   1. build-push  (ubuntu-latest) — builds all 3 Docker images and pushes to GHCR
 #   2. deploy      (self-hosted)   — pulls the new images and restarts containers
 
+# Manual runs only. On push it ran its deploy job on any self-hosted runner;
+# the only one is the production server, where this job (written for a
+# Windows host, docker-compose.prod.yml) would start a second copy of the
+# app. Production deploys come from server-deploy.yml.
 on:
-  push:
-    branches: [main, master]
   workflow_dispatch:
 
 env:
